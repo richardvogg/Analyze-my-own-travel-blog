@@ -1,0 +1,104 @@
+library(tidyverse)
+
+blogs <- read.csv("Blogtexts.csv")
+
+
+blogs_final <- blogs %>% 
+  mutate(weekday = factor(weekday) %>% 
+           forcats::fct_relevel("Montag","Dienstag","Mittwoch","Donnerstag",
+                                "Freitag","Samstag","Sonntag")) %>% 
+  separate(date,into = c("day","monthyear"),sep = "[.] ",) %>%
+  separate(monthyear,into=c("month","year"),sep = " ") %>% 
+  mutate(month = factor(month) %>% 
+           fct_relevel("Januar","Februar","März","April","Mai","Juni","Juli",
+                       "August","September","Oktober","November","Dezember"))
+
+
+#When did I post?
+blogs_final %>% 
+  ggplot(aes(x=month))+
+  geom_bar()+
+  facet_wrap(~year)+
+  labs(title="Number of blogposts per month and year",x="",y="#Posts")+
+  theme(axis.text.x = element_text(angle = 25))
+
+#Which days of the week?
+blogs_final %>% 
+  ggplot(aes(x=weekday))+
+  geom_bar()+
+  facet_wrap(~year)+
+  theme(axis.text.x = element_text(angle = 25))
+
+#Text Analysis
+library(patchwork)
+
+library(topicmodels)
+library(tidytext)
+library(ggwordcloud)
+
+
+stopWords <- c(tm::stopwords("de"),"dass","schon","gab","wurde","gibt","maría","paz",
+               "valparaíso","tag","nächsten","letzten","ersten","immer","woche",
+               "zwei","viele","drei","zeit","mal","ganz") %>% 
+  tibble(txt=.)
+
+blog_words <- blogs_final %>% tibble() %>% 
+  unnest_tokens(word,contents_clean) %>% 
+  anti_join(stopWords,by=c("word"="txt")) %>% 
+  count(titles,word,sort=TRUE)
+
+total_words <- blog_words %>% 
+  group_by(titles) %>% summarise(total=sum(n))
+
+#Longest articles
+{
+  long <- total_words %>% top_n(10,total) %>% 
+    ggplot(aes(x=total,y=reorder(titles,total)))+geom_col()+
+    xlim(c(0,650))+
+    labs(x="",y="")+
+    theme(axis.text.x=element_blank())
+  
+  short <- total_words %>% top_n(10,-total) %>% 
+    ggplot(aes(x=total,y=reorder(titles,total)))+geom_col()+
+    xlim(c(0,650))+
+    labs(x="words",y="")
+  
+  
+  
+  long / short
+}
+
+
+#Perform LDA
+word_dtm <- cast_dtm(blog_words,titles,word,n)
+
+blog_lda <- LDA(word_dtm,k=6,control=list(seed=1))
+
+
+#Check the topics
+
+blog_topics <- tidy(blog_lda,matrix="beta")
+
+ap_top_terms <- blog_topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+#Plot top words
+{
+  ap_top_terms %>%
+    mutate(term = reorder_within(term, beta, topic)) %>%
+    ggplot(aes(term, beta, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free") +
+    coord_flip() +
+    scale_x_reordered() 
+  }
+
+#Wordcloud for each topic
+ggplot(ap_top_terms,aes(label=term,size=beta,col=factor(topic)))+
+  geom_text_wordcloud()+
+  facet_wrap(~topic)+
+  scale_size_area(max_size=14)+
+  theme_minimal()
