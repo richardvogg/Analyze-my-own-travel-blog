@@ -3,7 +3,6 @@ library(dplyr)
 library(polite)
 
 
-
 #Put together a vector with all the article links
 titles_list <- list()
 
@@ -78,3 +77,5 @@ blogs <- data.frame(dates,titles,contents_clean) %>%
 
 write.csv(blogs,"Blogtexts.csv",row.names=FALSE)
 
+#Shortcut if data is already stored somewhere (recommended)
+blogs <- read.csv("Blogtexts.csv")
