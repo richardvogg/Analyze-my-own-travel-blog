@@ -1,5 +1,8 @@
 library(tidyverse)
+library(patchwork)
 
+#Shortcut if the file is already stored somewhere
+#Otherwise run richard_in_valparaiso_scraping.R first
 blogs <- read.csv("Blogtexts.csv")
 
 
@@ -30,13 +33,12 @@ blogs_final %>%
   theme(axis.text.x = element_text(angle = 25))
 
 #Text Analysis
-library(patchwork)
 
 library(topicmodels)
 library(tidytext)
 library(ggwordcloud)
 
-
+#Adding a few stopwords or too frequent words
 stopWords <- c(tm::stopwords("de"),"dass","schon","gab","wurde","gibt","maría","paz",
                "valparaíso","tag","nächsten","letzten","ersten","immer","woche",
                "zwei","viele","drei","zeit","mal","ganz") %>% 
