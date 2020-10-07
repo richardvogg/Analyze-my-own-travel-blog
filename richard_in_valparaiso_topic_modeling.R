@@ -3,7 +3,7 @@ library(patchwork)
 
 #Shortcut if the file is already stored somewhere
 #Otherwise run richard_in_valparaiso_scraping.R first
-blogs <- read.csv("Blogtexts.csv")
+blogs <- read.csv("C:/Richard/R and Python/Experiments/text analysis/Blogtexts.csv")
 
 
 blogs_final <- blogs %>% 
@@ -32,16 +32,29 @@ blogs_final %>%
   facet_wrap(~year)+
   theme(axis.text.x = element_text(angle = 25))
 
+#idea for other representation
+blogs_final %>%
+  count(year,weekday) %>%
+  group_by(year) %>%
+  mutate(perc=n/sum(n)) %>%
+  ggplot(aes(x=weekday,y=1,fill=perc))+
+  geom_tile()+
+  geom_text(aes(label=round(perc,2)))+
+  geom_text(aes(x=0.7,y=1.4,label=year),size=4,col="white")+
+  facet_grid(year~.)+
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.title.y=element_blank())
+
 #Text Analysis
 
 library(topicmodels)
 library(tidytext)
+library(tidylo)
 library(ggwordcloud)
 
-#Adding a few stopwords or too frequent words
-stopWords <- c(tm::stopwords("de"),"dass","schon","gab","wurde","gibt","maría","paz",
-               "valparaíso","tag","nächsten","letzten","ersten","immer","woche",
-               "zwei","viele","drei","zeit","mal","ganz") %>% 
+#German stopwords
+stopWords <- c(tm::stopwords("de")) %>% 
   tibble(txt=.)
 
 blog_words <- blogs_final %>% tibble() %>% 
@@ -49,11 +62,24 @@ blog_words <- blogs_final %>% tibble() %>%
   anti_join(stopWords,by=c("word"="txt")) %>% 
   count(titles,word,sort=TRUE)
 
-total_words <- blog_words %>% 
-  group_by(titles) %>% summarise(total=sum(n))
+too_freq <- blog_words %>%
+  count(word) %>%
+  filter(n>50)
+  
+too_unfreq <- blog_words %>%
+  count(word) %>%
+  filter(n<2)
+
+blog_words <- blog_words %>% 
+  anti_join(too_unfreq,by="word") %>%
+  anti_join(too_freq,by="word")
 
 #Longest articles
 {
+  
+  total_words <- blog_words %>% 
+    group_by(titles) %>% summarise(total=sum(n))
+  
   long <- total_words %>% top_n(10,total) %>% 
     ggplot(aes(x=total,y=reorder(titles,total)))+geom_col()+
     xlim(c(0,650))+
@@ -77,6 +103,7 @@ word_dtm <- cast_dtm(blog_words,titles,word,n)
 blog_lda <- LDA(word_dtm,k=6,control=list(seed=1))
 
 
+
 #Check the topics
 
 blog_topics <- tidy(blog_lda,matrix="beta")
@@ -87,6 +114,8 @@ ap_top_terms <- blog_topics %>%
   ungroup() %>%
   arrange(topic, -beta)
 
+
+
 #Plot top words
 {
   ap_top_terms %>%
@@ -96,7 +125,7 @@ ap_top_terms <- blog_topics %>%
     facet_wrap(~ topic, scales = "free") +
     coord_flip() +
     scale_x_reordered() 
-  }
+}
 
 #Wordcloud for each topic
 ggplot(ap_top_terms,aes(label=term,size=beta,col=factor(topic)))+
