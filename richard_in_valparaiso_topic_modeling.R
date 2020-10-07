@@ -108,7 +108,7 @@ blog_lda <- LDA(word_dtm,k=6,control=list(seed=1))
 
 blog_topics <- tidy(blog_lda,matrix="beta")
 
-ap_top_terms <- blog_topics %>%
+top_terms <- blog_topics %>%
   group_by(topic) %>%
   top_n(10, beta) %>%
   ungroup() %>%
@@ -118,7 +118,7 @@ ap_top_terms <- blog_topics %>%
 
 #Plot top words
 {
-  ap_top_terms %>%
+  top_terms %>%
     mutate(term = reorder_within(term, beta, topic)) %>%
     ggplot(aes(term, beta, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
@@ -128,8 +128,19 @@ ap_top_terms <- blog_topics %>%
 }
 
 #Wordcloud for each topic
-ggplot(ap_top_terms,aes(label=term,size=beta,col=factor(topic)))+
+ggplot(top_terms,aes(label=term,size=beta,col=factor(topic)))+
   geom_text_wordcloud()+
   facet_wrap(~topic)+
   scale_size_area(max_size=14)+
   theme_minimal()
+
+
+#Add main topic to each article
+
+blogpost_topics <- tidy(blog_lda, matrix = "gamma") %>%
+  group_by(document) %>%
+  mutate(rank=rank(gamma)) %>%
+  filter(rank==6)
+
+final <- blog_words %>% 
+  left_join(blogpost_topics,by=c("titles"="document"))
