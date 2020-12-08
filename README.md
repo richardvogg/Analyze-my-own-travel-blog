@@ -5,6 +5,7 @@ Since I came to Chile for the first time in 2014 I am writing a blog for family 
 I wrote a script to scrape all texts and dates from the blog to do some analysis.
 
 First, I just looked at when I wrote my articles.
+
 ![](img/plots_per_month.png)
 
 It is also interesting to see at which weekdays I wrote most articles. There are differences between my time at the university (2014-15) and my working life (2017 onwards).
